@@ -30,7 +30,7 @@ import confetti from "https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/co
 console.log("Script loaded - checking for db...");
 
 // Wait for Firebase to be ready
-let db;
+
 const waitForDb = setInterval(() => {
   if (window.db) {
     db = window.db;
