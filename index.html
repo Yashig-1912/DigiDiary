@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Digital Birthday Diary</title>
+        <script type="module">
+            // Import Firebase
+            import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+            import { getFirestore } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+            
+            const firebaseConfig = {
+                apiKey: "AIzaSyDvSr8TprDfbTezgd2mZo3x97TiIvdGmwg",
+                authDomain: "tanya-s-birthday-bash.firebaseapp.com",
+                projectId: "tanya-s-birthday-bash",
+                messagingSenderId: "1038528788932",
+                appId: "1:1038528788932:web:b64534c53b62e89806cc91"
+            };
+            
+            const app = initializeApp(firebaseConfig);
+            const db = getFirestore(app);
+            window.db = db;
+        </script>
+
+        <link rel="stylesheet" href="style.css">
+    </head>
+    <body>
+        <button id="celebrateBtn">🎉</button>
+        <div class="diary">
+            <h1 class="diary-title">Birthday Diary 💛</h1>
+            <div class="name-section">
+                <input
+                    id="authorInput"
+                    type="text"
+                    placeholder="Your name"
+                    autocomplete="off"
+                />
+            </div>
+
+            <!-- Canvas area -->
+            <div class="canvas-wrapper">
+                <canvas
+                    id="diaryCanvas"
+                    width="350"
+                    height="450">
+                </canvas>
+            </div>
+
+            <!-- Author display (shows name of page author) -->
+            <div class="author-display">
+                Written by: <span id="authorDisplay">—</span>
+            </div>
+
+            <div class="tools">
+                <button id="penBtn" title="Pen">🖊️</button>
+                <button id="eraserBtn" title="Eraser">🧽</button>
+
+                <input id="sizePicker" type="range" min="1" max="10" value="2" />
+                <input id="colorPicker" type="color" value="#000000" />
+
+                <button id="emojiBtn" title="Emoji">😊</button>
+            </div>
+
+            <!-- Emoji tray -->
+            <div id="emojiTray" class="emoji-tray hidden">
+                <span>😀</span>
+                <span>🥳</span>
+                <span>💖</span>
+                <span>🎂</span>
+                <span>✨</span>
+                <span>🌸</span>
+                <span>🫶</span>
+            </div>
+
+            <div class="page-controls">
+                <button id="prevPage">⬅️</button>
+                <span id="pageNumber">Page 1</span>
+                <button id="nextPage">➡️</button>
+            </div>
+
+            <!-- Actions -->
+            <div class="actions">
+                <button id="undoBtn">Undo</button>
+                <button id="saveBtn">Save Page</button>
+            </div>
+
+        </div>
+
+        <!-- Main JS -->
+        <script type="module" src="script.js"></script>
+    </body>
+</html>
