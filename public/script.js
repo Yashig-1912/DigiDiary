@@ -1,21 +1,9 @@
 /* ======================================================
    IMPORTS
    ====================================================== */
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-            
-const firebaseConfig = {
-    apiKey: "AIzaSyDvSr8TprDfbTezgd2mZo3x97TiIvdGmwg",
-    authDomain: "tanya-s-birthday-bash.firebaseapp.com",
-    projectId: "tanya-s-birthday-bash",
-    messagingSenderId: "1038528788932",
-    appId: "1:1038528788932:web:b64534c53b62e89806cc91"
-};
-            
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-window.db = db;
+import { initializeApp as initFirebase } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import {
+  getFirestore,
   collection,
   getDocs,
   setDoc,
@@ -27,18 +15,22 @@ import {
 
 import confetti from "https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.module.mjs";
 
-console.log("Script loaded - checking for db...");
+/* ======================================================
+   FIREBASE INIT
+   ====================================================== */
 
-// Wait for Firebase to be ready
+const firebaseConfig = {
+  apiKey: "AIzaSyDvSr8TprDfbTezgd2mZo3x97TiIvdGmwg",
+  authDomain: "tanya-s-birthday-bash.firebaseapp.com",
+  projectId: "tanya-s-birthday-bash",
+  messagingSenderId: "1038528788932",
+  appId: "1:1038528788932:web:b64534c53b62e89806cc91"
+};
 
-const waitForDb = setInterval(() => {
-  if (window.db) {
-    db = window.db;
-    console.log("Firebase DB ready!");
-    clearInterval(waitForDb);
-    initializeApp();
-  }
-}, 100);
+const firebaseApp = initFirebase(firebaseConfig);
+const db = getFirestore(firebaseApp);
+
+console.log("Firebase initialized, DB ready!");
 
 /* ======================================================
    GLOBAL STATE
@@ -73,9 +65,6 @@ const nameInput = document.getElementById("authorInput");
 const nameDisplay = document.getElementById("authorDisplay");
 const celebrateBtn = document.getElementById("celebrateBtn");
 
-console.log("Canvas element:", canvas);
-console.log("Context:", ctx);
-
 /* ======================================================
    CANVAS DEFAULTS
    ====================================================== */
@@ -102,12 +91,8 @@ function getPosition(e) {
 }
 
 function startDrawing(e) {
-  if (emojiMode && selectedEmoji) {
-    return;
-  }
-  
+  if (emojiMode && selectedEmoji) return;
   e.preventDefault();
-  console.log("Starting to draw");
   saveState();
   drawing = true;
   const pos = getPosition(e);
@@ -124,10 +109,7 @@ function draw(e) {
 }
 
 function stopDrawing(e) {
-  if (drawing && e) {
-    e.preventDefault();
-  }
-  console.log("Stopped drawing");
+  if (drawing && e) e.preventDefault();
   drawing = false;
   ctx.closePath();
 }
@@ -137,11 +119,6 @@ function stopDrawing(e) {
    ====================================================== */
 
 async function loadPagesFromFirestore() {
-  if (!db) {
-    console.error("Database not ready");
-    return;
-  }
-  
   pages = [];
   try {
     const q = query(collection(db, "pages"), orderBy("index"));
@@ -162,7 +139,7 @@ async function loadPagesFromFirestore() {
 
 function renderPage(index) {
   history = [];
-  
+
   if (!pages[index]) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     nameDisplay.innerText = "—";
@@ -206,8 +183,6 @@ canvas.addEventListener("touchstart", startDrawing, { passive: false });
 canvas.addEventListener("touchmove", draw, { passive: false });
 canvas.addEventListener("touchend", stopDrawing);
 
-console.log("Canvas event listeners attached");
-
 /* ======================================================
    EVENT LISTENERS - TOOLS
    ====================================================== */
@@ -240,9 +215,7 @@ emojiBtn.addEventListener("click", () => {
   emojiMode = !emojiMode;
   emojiTray.classList.toggle("hidden");
   emojiBtn.classList.toggle("active");
-  if (!emojiMode) {
-    selectedEmoji = "";
-  }
+  if (!emojiMode) selectedEmoji = "";
 });
 
 emojiTray.addEventListener("click", e => {
@@ -253,7 +226,6 @@ emojiTray.addEventListener("click", e => {
 
 canvas.addEventListener("click", e => {
   if (!emojiMode || !selectedEmoji || drawing) return;
-
   saveState();
   const pos = getPosition(e);
   ctx.font = `${ctx.lineWidth * 10}px serif`;
@@ -267,7 +239,6 @@ canvas.addEventListener("click", e => {
 
 undoBtn.addEventListener("click", () => {
   if (!history.length) return;
-
   const img = new Image();
   img.src = history.pop();
   img.onload = () => {
@@ -289,25 +260,14 @@ nameInput.addEventListener("input", e => {
    ====================================================== */
 
 saveBtn.addEventListener("click", async () => {
-  console.log("Save button clicked!");
-  console.log("Current author:", currentAuthor);
-  console.log("DB status:", db ? "ready" : "not ready");
-  
   if (!currentAuthor) {
     alert("Please enter your name first 😊");
     return;
   }
 
-  if (!db) {
-    alert("Database not ready. Please wait and try again.");
-    return;
-  }
-
   const imageData = canvas.toDataURL("image/png");
-  console.log("Image data captured, length:", imageData.length);
 
   try {
-    console.log("Attempting to save to Firebase...");
     await setDoc(doc(db, "pages", String(currentPageIndex)), {
       index: currentPageIndex,
       image: imageData,
@@ -315,15 +275,11 @@ saveBtn.addEventListener("click", async () => {
       createdAt: serverTimestamp()
     });
 
-    console.log("Firebase save successful!");
-
     pages.push({
       index: currentPageIndex,
       image: imageData,
       author: currentAuthor
     });
-
-    console.log("Page added to local array. Total pages:", pages.length);
 
     currentPageIndex++;
     currentAuthor = "";
@@ -334,14 +290,11 @@ saveBtn.addEventListener("click", async () => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     updatePageNumber();
     updateNavButtons();
-    
-    console.log("Canvas cleared, UI updated. New page index:", currentPageIndex);
+
     alert("Page saved successfully! 🎉");
   } catch (error) {
-    console.error("FULL Error saving page:", error);
-    console.error("Error message:", error.message);
-    console.error("Error code:", error.code);
-    alert("Error saving page: " + error.message + "\nCheck the console for details.");
+    console.error("Error saving page:", error);
+    alert("Error saving page: " + error.message);
   }
 });
 
@@ -370,8 +323,6 @@ nextBtn.addEventListener("click", () => {
    ====================================================== */
 
 celebrateBtn.addEventListener("click", () => {
-  console.log("Celebrate button clicked!");
-  
   const duration = 2500;
   const end = Date.now() + duration;
 
@@ -390,29 +341,21 @@ celebrateBtn.addEventListener("click", () => {
       origin: { x: 1 },
       colors: ['#FFD700', '#FF69B4', '#87CEEB', '#98FB98']
     });
-
-    if (Date.now() < end) {
-      requestAnimationFrame(frame);
-    }
+    if (Date.now() < end) requestAnimationFrame(frame);
   })();
 });
-
-console.log("All event listeners attached");
 
 /* ======================================================
    INITIALIZATION
    ====================================================== */
 
-async function initializeApp() {
+async function startApp() {
   console.log("Initializing app...");
   await loadPagesFromFirestore();
   updatePageNumber();
   updateNavButtons();
   nameDisplay.innerText = "—";
   console.log("Birthday Diary ready!");
-  
-  // Test draw
-  ctx.fillStyle = "#000";
-  ctx.fillRect(10, 10, 5, 5);
-  console.log("Test pixel drawn at 10,10");
 }
+
+startApp();
