@@ -275,3 +275,14 @@ body {
     height: auto;
   }
 }
+/* ============================
+   SUBTITLE
+   ============================ */
+
+.diary-subtitle {
+  text-align: center;
+  font-size: 14px;
+  color: #7a5c4f;
+  margin: -12px 0 18px;
+  font-style: italic;
+}

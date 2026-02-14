@@ -30,8 +30,6 @@ const firebaseConfig = {
 const firebaseApp = initFirebase(firebaseConfig);
 const db = getFirestore(firebaseApp);
 
-console.log("Firebase initialized, DB ready!");
-
 /* ======================================================
    GLOBAL STATE
    ====================================================== */
@@ -43,6 +41,7 @@ let drawing = false;
 let emojiMode = false;
 let selectedEmoji = "";
 let currentAuthor = "";
+let isReadOnly = false;   // true when viewing a saved page
 
 /* ======================================================
    DOM REFERENCES
@@ -74,6 +73,63 @@ ctx.lineCap = "round";
 ctx.strokeStyle = "#000";
 
 /* ======================================================
+   CONFETTI HELPER
+   ====================================================== */
+
+function launchConfetti() {
+  const duration = 2500;
+  const end = Date.now() + duration;
+
+  (function frame() {
+    confetti({
+      particleCount: 6,
+      angle: 60,
+      spread: 80,
+      origin: { x: 0 },
+      colors: ['#FFD700', '#FF69B4', '#87CEEB', '#98FB98']
+    });
+    confetti({
+      particleCount: 6,
+      angle: 120,
+      spread: 80,
+      origin: { x: 1 },
+      colors: ['#FFD700', '#FF69B4', '#87CEEB', '#98FB98']
+    });
+    if (Date.now() < end) requestAnimationFrame(frame);
+  })();
+}
+
+/* ======================================================
+   READ-ONLY MODE
+   ====================================================== */
+
+function setReadOnly(enabled) {
+  isReadOnly = enabled;
+
+  canvas.style.cursor = enabled ? "not-allowed" : "crosshair";
+
+  penBtn.disabled = enabled;
+  eraserBtn.disabled = enabled;
+  sizePicker.disabled = enabled;
+  colorPicker.disabled = enabled;
+  emojiBtn.disabled = enabled;
+  undoBtn.disabled = enabled;
+  saveBtn.disabled = enabled;
+  nameInput.disabled = enabled;
+
+  document.querySelector(".tools").style.opacity = enabled ? "0.4" : "1";
+  document.querySelector(".actions").style.opacity = enabled ? "0.4" : "1";
+  document.querySelector(".name-section").style.opacity = enabled ? "0.4" : "1";
+
+  if (enabled) {
+    emojiTray.classList.add("hidden");
+    emojiMode = false;
+    selectedEmoji = "";
+    emojiBtn.classList.remove("active");
+  }
+}
+
+/* ======================================================
    CANVAS DRAWING FUNCTIONS
    ====================================================== */
 
@@ -91,6 +147,7 @@ function getPosition(e) {
 }
 
 function startDrawing(e) {
+  if (isReadOnly) return;
   if (emojiMode && selectedEmoji) return;
   e.preventDefault();
   saveState();
@@ -101,7 +158,7 @@ function startDrawing(e) {
 }
 
 function draw(e) {
-  if (!drawing) return;
+  if (!drawing || isReadOnly) return;
   e.preventDefault();
   const pos = getPosition(e);
   ctx.lineTo(pos.x, pos.y);
@@ -140,14 +197,17 @@ async function loadPagesFromFirestore() {
 function renderPage(index) {
   history = [];
 
+  // New blank page — editable
   if (!pages[index]) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     nameDisplay.innerText = "—";
     nameInput.value = "";
     currentAuthor = "";
+    setReadOnly(false);
     return;
   }
 
+  // Saved page — lock it
   const img = new Image();
   img.src = pages[index].image;
   img.onload = () => {
@@ -155,10 +215,10 @@ function renderPage(index) {
     ctx.drawImage(img, 0, 0);
   };
 
-  const author = pages[index].author || "—";
-  nameDisplay.innerText = author;
+  nameDisplay.innerText = pages[index].author || "—";
   nameInput.value = "";
   currentAuthor = "";
+  setReadOnly(true);
 }
 
 function updatePageNumber() {
@@ -188,22 +248,26 @@ canvas.addEventListener("touchend", stopDrawing);
    ====================================================== */
 
 colorPicker.addEventListener("change", e => {
+  if (isReadOnly) return;
   ctx.strokeStyle = e.target.value;
 });
 
 penBtn.addEventListener("click", () => {
+  if (isReadOnly) return;
   ctx.strokeStyle = colorPicker.value;
   penBtn.classList.add("active");
   eraserBtn.classList.remove("active");
 });
 
 eraserBtn.addEventListener("click", () => {
+  if (isReadOnly) return;
   ctx.strokeStyle = "#fffdf8";
   eraserBtn.classList.add("active");
   penBtn.classList.remove("active");
 });
 
 sizePicker.addEventListener("input", e => {
+  if (isReadOnly) return;
   ctx.lineWidth = e.target.value;
 });
 
@@ -212,6 +276,7 @@ sizePicker.addEventListener("input", e => {
    ====================================================== */
 
 emojiBtn.addEventListener("click", () => {
+  if (isReadOnly) return;
   emojiMode = !emojiMode;
   emojiTray.classList.toggle("hidden");
   emojiBtn.classList.toggle("active");
@@ -225,7 +290,7 @@ emojiTray.addEventListener("click", e => {
 });
 
 canvas.addEventListener("click", e => {
-  if (!emojiMode || !selectedEmoji || drawing) return;
+  if (isReadOnly || !emojiMode || !selectedEmoji || drawing) return;
   saveState();
   const pos = getPosition(e);
   ctx.font = `${ctx.lineWidth * 10}px serif`;
@@ -238,7 +303,7 @@ canvas.addEventListener("click", e => {
    ====================================================== */
 
 undoBtn.addEventListener("click", () => {
-  if (!history.length) return;
+  if (isReadOnly || !history.length) return;
   const img = new Image();
   img.src = history.pop();
   img.onload = () => {
@@ -252,6 +317,7 @@ undoBtn.addEventListener("click", () => {
    ====================================================== */
 
 nameInput.addEventListener("input", e => {
+  if (isReadOnly) return;
   currentAuthor = e.target.value.trim();
 });
 
@@ -260,6 +326,8 @@ nameInput.addEventListener("input", e => {
    ====================================================== */
 
 saveBtn.addEventListener("click", async () => {
+  if (isReadOnly) return;
+
   if (!currentAuthor) {
     alert("Please enter your name first 😊");
     return;
@@ -290,8 +358,9 @@ saveBtn.addEventListener("click", async () => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     updatePageNumber();
     updateNavButtons();
+    setReadOnly(false);
 
-    alert("Page saved successfully! 🎉");
+    launchConfetti();
   } catch (error) {
     console.error("Error saving page:", error);
     alert("Error saving page: " + error.message);
@@ -319,31 +388,10 @@ nextBtn.addEventListener("click", () => {
 });
 
 /* ======================================================
-   EVENT LISTENERS - CELEBRATION
+   EVENT LISTENERS - CELEBRATION BUTTON
    ====================================================== */
 
-celebrateBtn.addEventListener("click", () => {
-  const duration = 2500;
-  const end = Date.now() + duration;
-
-  (function frame() {
-    confetti({
-      particleCount: 6,
-      angle: 60,
-      spread: 80,
-      origin: { x: 0 },
-      colors: ['#FFD700', '#FF69B4', '#87CEEB', '#98FB98']
-    });
-    confetti({
-      particleCount: 6,
-      angle: 120,
-      spread: 80,
-      origin: { x: 1 },
-      colors: ['#FFD700', '#FF69B4', '#87CEEB', '#98FB98']
-    });
-    if (Date.now() < end) requestAnimationFrame(frame);
-  })();
-});
+celebrateBtn.addEventListener("click", launchConfetti);
 
 /* ======================================================
    INITIALIZATION
@@ -355,7 +403,11 @@ async function startApp() {
   updatePageNumber();
   updateNavButtons();
   nameDisplay.innerText = "—";
+  setReadOnly(false);
   console.log("Birthday Diary ready!");
+
+  // Confetti every time the site loads
+  launchConfetti();
 }
 
 startApp();
